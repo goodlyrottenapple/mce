@@ -68,6 +68,10 @@ block prepend content
           span.community-hide(title="Hide and never show again" aria-label="Close")
             button.btn-close(type="button" aria-label="Close")
 
+        if monadStatic
+          .monad-runtime
+            span.monad-status-dot
+            | Runs in your browser
         ul.navbar-nav.ms-auto.mb-2.mb-md-0
           if showSponsors
             li.nav-item.btn.btn-outline-info#ces

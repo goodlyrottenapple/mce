@@ -1,4 +1,4 @@
-// Copyright (c) 2021, Compiler Explorer Authors
+// Copyright (c) 2026, Compiler Explorer Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -22,25 +22,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-import {unwrap} from '../shared/assert.js';
+import {compileRequest} from './adapter.mjs';
+import createMce from './mce-wasm.mjs';
 
-const configElement = document.getElementById('config');
-if (!configElement) {
-    throw new Error('Could not find config element in DOM tree');
-}
-
-// httpRoot & staticRoot are always a string and always set.
-window.httpRoot = new URL(unwrap(configElement.getAttribute('httpRoot')), document.baseURI).pathname;
-window.staticRoot = new URL(unwrap(configElement.getAttribute('staticRoot')), document.baseURI).pathname;
-
-window.compilerExplorerOptions = {
-    ...JSON.parse(decodeURIComponent(configElement.getAttribute('extraOptions') ?? '%7B%7D')),
+const module = createMce();
+self.onmessage = async ({data}) => {
+    const result = await compileRequest(module, data);
+    self.postMessage({id: data.id, result});
 };
-
-// biome-ignore lint/style/useConst: can't use const here
-declare let __webpack_public_path__: string;
-
-__webpack_public_path__ = window.staticRoot;
-
-export const options = window.compilerExplorerOptions;
-export const optionsHash = configElement.getAttribute('optionsHash') ?? '';

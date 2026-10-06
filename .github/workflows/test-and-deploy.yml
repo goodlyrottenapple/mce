@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
+    if: github.repository_owner == 'compiler-explorer'
     runs-on: ubuntu-22.04
 
     steps:
@@ -37,6 +38,7 @@ jobs:
           verbose: true
 
   build_minimum_support:
+    if: github.repository_owner == 'compiler-explorer'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
@@ -143,6 +145,7 @@ jobs:
             })
 
   post_deploy_check:
+    if: github.repository_owner == 'compiler-explorer'
     needs: [test, build_dist, deploy]
     runs-on: [admin]
     steps:

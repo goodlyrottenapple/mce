@@ -30,7 +30,7 @@ import {isString} from '../shared/common-utils.js';
 import {options} from './options.js';
 import {SiteSettings} from './settings.js';
 
-export type Themes = 'default' | 'dark' | 'darkplus' | 'pink' | 'onedark' | 'real-dark' | 'system';
+export type Themes = 'monad' | 'default' | 'dark' | 'darkplus' | 'pink' | 'onedark' | 'real-dark' | 'system';
 
 export type Theme = {
     path: string;
@@ -41,6 +41,7 @@ export type Theme = {
 };
 
 export const themes: Record<Themes, Theme> = {
+    monad: {path: 'dark', id: 'monad', name: 'Monad', mainColor: '#100b1c', monaco: 'ce-monad'},
     default: {
         path: 'default',
         id: 'default',
@@ -91,6 +92,27 @@ export const themes: Record<Themes, Theme> = {
         monaco: 'ce',
     },
 };
+
+editor.defineTheme('ce-monad', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+        {token: 'keyword', foreground: 'A99BFF'},
+        {token: 'variable.predefined', foreground: '5FEDDF'},
+        {token: 'number', foreground: 'F2CAA2'},
+        {token: 'comment', foreground: '80768E'},
+    ],
+    colors: {
+        'editor.background': '#100B1C',
+        'editor.foreground': '#F8EDE7',
+        'editorLineNumber.foreground': '#6D627F',
+        'editorLineNumber.activeForeground': '#C4B5FD',
+        'editorCursor.foreground': '#A99BFF',
+        'editor.selectionBackground': '#836EF940',
+        'editor.lineHighlightBackground': '#1B132C',
+        'editorIndentGuide.background1': '#2C223D',
+    },
+});
 
 editor.defineTheme('ce', {
     base: 'vs',

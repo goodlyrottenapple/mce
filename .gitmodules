@@ -1,0 +1,4 @@
+[submodule "vendor/monad"]
+	path = vendor/monad
+	url = https://github.com/monad-crypto/monad.git
+	branch = sam/mce_wasm

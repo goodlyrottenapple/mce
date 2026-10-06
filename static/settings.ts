@@ -339,13 +339,13 @@ export class Settings {
         const themesData = keys(themes).map((theme: Themes) => {
             return {label: themes[theme].id, desc: themes[theme].name};
         });
-        const defaultThemeId = themes.system.id;
+        const defaultThemeId = options.monadWasm ? themes.monad.id : themes.system.id;
 
         const colourSchemesData = colour.schemes
             .filter(scheme => this.isSchemeUsable(scheme, defaultThemeId))
             .map(scheme => ({label: scheme.name, desc: scheme.desc}));
         let defaultColourScheme = colour.schemes[0].name;
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        if (options.monadWasm || window.matchMedia('(prefers-color-scheme: dark)').matches) {
             defaultColourScheme = 'gray-shade';
         }
         addSelector('.colourScheme', 'colourScheme', colourSchemesData, defaultColourScheme);

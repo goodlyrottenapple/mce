@@ -8,6 +8,7 @@ on:
 
 jobs:
   check:
+    if: github.repository_owner == 'compiler-explorer'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

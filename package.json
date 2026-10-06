@@ -87,6 +87,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
+    "@playwright/test": "^1.63.0",
     "@sentry/types": "^10.63.0",
     "@smithy/util-stream": "^4.7.5",
     "@types/bootstrap": "^5.2.11",
@@ -168,7 +169,13 @@
     "ts-check:tests": "tsc -p ./tsconfig.tests.json --noEmit",
     "ts-check:frontend-tests": "tsc -p ./tsconfig.frontend.tests.json --noEmit",
     "ts-check:cypress": "tsc -p ./cypress/tsconfig.json --noEmit",
-    "webpack": "node --no-warnings=ExperimentalWarning --import=tsx ./node_modules/webpack-cli/bin/cli.js --config-node-env=production --config webpack.config.esm.ts"
+    "webpack": "node --no-warnings=ExperimentalWarning --import=tsx ./node_modules/webpack-cli/bin/cli.js --config-node-env=production --config webpack.config.esm.ts",
+    "build:monad:wasm": "node etc/monad/build-wasm.mjs",
+    "build:monad": "npm run build:monad:wasm && npm run webpack && node etc/monad/build-static.mjs",
+    "build:monad:ui": "npm run webpack && node etc/monad/build-static.mjs",
+    "serve:monad": "node etc/monad/serve.mjs",
+    "test:monad": "node --test --test-isolation=none test/monad-static-tests.mjs",
+    "test:monad:browser": "node etc/monad/test-browser.mjs"
   },
   "license": "BSD-2-Clause",
   "packageManager": "npm@11.2.0"

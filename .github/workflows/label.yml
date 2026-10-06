@@ -9,6 +9,7 @@ on:
 
 jobs:
   label:
+    if: github.repository_owner == 'compiler-explorer'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/labeler@v7

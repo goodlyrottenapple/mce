@@ -23,6 +23,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 export type LanguageKey =
+    | 'evm'
     | 'ada'
     | 'algol68'
     | 'analysis'

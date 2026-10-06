@@ -1,0 +1,78 @@
+// Copyright (c) 2026, Compiler Explorer Authors
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright notice,
+//       this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
+import assert from 'node:assert/strict';
+import {mkdirSync} from 'node:fs';
+import {chromium} from '@playwright/test';
+
+const url = process.env.MCE_URL ?? 'http://127.0.0.1:10240/';
+const browser = await chromium.launch({headless: true});
+let page;
+try {
+    page = await browser.newPage({viewport: {width: 1440, height: 960}});
+    const errors = [];
+    const requests = [];
+    page.on('pageerror', error => { errors.push(error.message); console.error('Page error:', error.stack); });
+    page.on('response', response => { if (response.status() >= 400) console.error(response.status(), response.url()); });
+    page.on('request', request => requests.push({url: request.url(), method: request.method()}));
+    page.on('console', message => { if (message.type() === 'error') console.error('Browser:', message.text()); });
+    await page.goto(url);
+    await page.waitForFunction(() => window.monaco?.editor.getModels().some(model => model.getValue().includes('ContractEpilogue:')), {timeout: 60000});
+    assert.equal(await page.title(), 'Monad Compiler Explorer');
+    assert.equal(await page.locator('.monad-wordmark strong').textContent(), 'monad');
+    assert.equal(await page.locator('.monad-wordmark > span').textContent(), 'Compiler Explorer');
+    const initial = await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'asm').getValue());
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('600560060160005200'));
+    await page.waitForFunction(before => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:') && model.getValue() !== before), initial);
+    await page.locator('.lm_content .output-btn').click();
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('gg'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getValue().includes('Malformed hex')) || document.body.innerText.includes('Malformed hex'));
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('6000\n35\n6001\n01\n6000\n52\n6020\n6000\nf3'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:')));
+    await page.locator('.lm_tab').filter({hasText: 'Output'}).locator('.lm_close_tab').click();
+    await page.waitForFunction(() => window.monaco.editor.getEditors().every(editor => !editor.getDomNode()?.offsetParent || Math.abs(editor.getLayoutInfo().width - editor.getDomNode().parentElement.clientWidth) < 5));
+    const palette = await page.evaluate(() => ({
+        header: getComputedStyle(document.querySelector('nav')).backgroundColor,
+        wordmark: getComputedStyle(document.querySelector('.monad-brand')).color,
+    }));
+    assert.notEqual(palette.header, 'rgb(51, 51, 51)', 'Stock CE header colour remains');
+    assert.equal(palette.wordmark, 'rgb(248, 237, 231)');
+    assert.deepEqual(errors, []);
+    assert.equal(requests.filter(request => request.method === 'POST').length, 0, 'Static site made a POST request');
+    assert.ok(requests.some(request => request.url.endsWith('mce-wasm.wasm')));
+    assert.equal(requests.filter(request => !request.url.startsWith(new URL(url).origin)).length, 0, 'External runtime request');
+    mkdirSync('out/monad', {recursive: true});
+    await page.screenshot({path: 'out/monad/desktop.png', fullPage: true});
+    await page.setViewportSize({width: 768, height: 1024});
+    await page.waitForFunction(() => window.monaco.editor.getEditors().every(editor => !editor.getDomNode()?.offsetParent || Math.abs(editor.getLayoutInfo().width - editor.getDomNode().parentElement.clientWidth) < 5));
+    await page.screenshot({path: 'out/monad/tablet.png', fullPage: true});
+    console.log(`Browser checks passed at ${url}: compile, edit, errors, recovery, source mapping and static-only requests.`);
+} catch (error) {
+    mkdirSync('out/monad', {recursive: true});
+    await page?.screenshot({path: 'out/monad/failure.png', fullPage: true});
+    console.error(await page?.evaluate(() => ({text: document.body.innerText.slice(0, 3000), models: window.monaco?.editor.getModels().map(m => ({language: m.getLanguageId(), value: m.getValue().slice(0, 400)}))})));
+    throw error;
+} finally {
+    await browser.close();
+}

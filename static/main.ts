@@ -29,6 +29,7 @@ SetupSentry();
 
 // Then configure the options so that window.staticRoot/httpRoot are set
 import './options.js';
+import './monad/language.js';
 
 import 'whatwg-fetch';
 import '@popperjs/core';
@@ -102,6 +103,7 @@ function setupSettings(hub: Hub): [Themer, SiteSettings] {
     const eventHub = hub.layout.eventHub;
     const defaultSettings = {
         defaultLanguage: hub.defaultLangId,
+        ...(options.monadWasm ? {theme: 'monad'} : {}),
     };
     let currentSettings: SiteSettings = JSON.parse(localStorage.get('settings', 'null')) || defaultSettings;
 
@@ -191,7 +193,7 @@ function setupButtons(options: CompilerExplorerOptions, hub: Hub) {
     });
 
     $('#ui-duplicate').on('click', () => {
-        window.open('/', '_blank');
+        window.open(window.httpRoot, '_blank');
     });
 
     $('#changes').on('click', () => {
@@ -199,23 +201,25 @@ function setupButtons(options: CompilerExplorerOptions, hub: Hub) {
         alertSystem.alert('Changelog', changelogDocument.text);
     });
 
-    $.get(window.location.origin + window.httpRoot + 'bits/icons.html')
-        .done(data => {
-            $('#ces .ces-icons').html(data);
-        })
-        .fail(err => {
-            // Filter out network-level failures that aren't actionable bugs
-            // readyState 0 with status 0 typically indicates network issues, ad blockers, or aborted requests
-            if (err.readyState === 0 && err.status === 0) {
-                console.debug('Icons request failed due to network/browser policy:', err.statusText);
-                return;
-            }
+    if (!options.monadWasm) {
+        $.get(window.location.origin + window.httpRoot + 'bits/icons.html')
+            .done(data => {
+                $('#ces .ces-icons').html(data);
+            })
+            .fail(err => {
+                // Filter out network-level failures that aren't actionable bugs
+                // readyState 0 with status 0 typically indicates network issues, ad blockers, or aborted requests
+                if (err.readyState === 0 && err.status === 0) {
+                    console.debug('Icons request failed due to network/browser policy:', err.statusText);
+                    return;
+                }
 
-            // Only capture server errors or other potentially actionable failures
-            if (err.status >= 400) {
-                SentryCapture(err, '$.get failed loading icons');
-            }
-        });
+                // Only capture server errors or other potentially actionable failures
+                if (err.status >= 400) {
+                    SentryCapture(err, '$.get failed loading icons');
+                }
+            });
+    }
 
     $('#ces').on('click', () => {
         $.get(window.location.origin + window.httpRoot + 'bits/sponsors.html')

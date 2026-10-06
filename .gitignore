@@ -41,3 +41,11 @@ newrelic_agent.log
 .aider*
 
 etc/scripts/ce-properties-wizard/ce_properties_wizard/__pycache__
+
+/vendor/monad/build-mce-wasm/
+/dist-monad/
+/public/monad/mce-wasm.mjs
+/public/monad/mce-wasm.wasm
+/public/monad/build.json
+/playwright-report/
+/test-results/

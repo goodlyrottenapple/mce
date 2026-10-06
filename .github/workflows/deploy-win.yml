@@ -11,6 +11,7 @@ on:
 
 jobs:
   build_dist:
+    if: github.repository_owner == 'compiler-explorer'
     runs-on: windows-2022
     outputs:
       release_name: ${{ steps.build_dist.outputs.release_name }}
@@ -36,6 +37,7 @@ jobs:
           path: out/dist-bin
 
   deploy:
+    if: github.repository_owner == 'compiler-explorer'
     needs: [build_dist]
     runs-on: ubuntu-latest
 

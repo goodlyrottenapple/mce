@@ -12,7 +12,7 @@
     "strictPropertyInitialization": false,
     "lib": ["dom", "es5", "dom.iterable"]
   },
-  "exclude": [
+  "exclude": ["vendor", "dist-monad",
     "out",
     "test",
     "etc",

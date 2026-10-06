@@ -1,5 +1,12 @@
-a.navbar-brand(href=httpRoot title="Compiler Explorer", style="position: relative")
-  svg.logo.align-top(height="50" width="165" role="img" aria-label="Compiler Explorer logo")
-    include resources/site-logo.svg
-  if logoOverlayFilename
-    img(src=staticRoot + logoOverlayFilename alt="" aria-hidden="true" height="50" width="165" style="position: absolute; top: 0; right: 0;")
+if monadStatic
+  a.navbar-brand.monad-brand(href=httpRoot title="Monad Compiler Explorer")
+    img(src=staticRoot + "monad/icon.svg" width="36" height="36" alt="")
+    span.monad-wordmark
+      strong monad
+      span Compiler Explorer
+else
+  a.navbar-brand(href=httpRoot title="Compiler Explorer", style="position: relative")
+    svg.logo.align-top(height="50" width="165" role="img" aria-label="Compiler Explorer logo")
+      include resources/site-logo.svg
+    if logoOverlayFilename
+      img(src=staticRoot + logoOverlayFilename alt="" aria-hidden="true" height="50" width="165" style="position: absolute; top: 0; right: 0;")

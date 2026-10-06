@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
+    if: github.repository_owner == 'compiler-explorer'
     runs-on: windows-2022
 
     steps:

@@ -1,4 +1,4 @@
-// Copyright (c) 2021, Compiler Explorer Authors
+// Copyright (c) 2026, Compiler Explorer Authors
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -22,25 +22,22 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-import {unwrap} from '../shared/assert.js';
+import {spawnSync} from 'node:child_process';
+import {copyFileSync, mkdirSync, writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 
-const configElement = document.getElementById('config');
-if (!configElement) {
-    throw new Error('Could not find config element in DOM tree');
+function run(command, args) {
+    const result = spawnSync(command, args, {stdio: 'inherit'});
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(`${command} exited with ${result.status}`);
 }
-
-// httpRoot & staticRoot are always a string and always set.
-window.httpRoot = new URL(unwrap(configElement.getAttribute('httpRoot')), document.baseURI).pathname;
-window.staticRoot = new URL(unwrap(configElement.getAttribute('staticRoot')), document.baseURI).pathname;
-
-window.compilerExplorerOptions = {
-    ...JSON.parse(decodeURIComponent(configElement.getAttribute('extraOptions') ?? '%7B%7D')),
-};
-
-// biome-ignore lint/style/useConst: can't use const here
-declare let __webpack_public_path__: string;
-
-__webpack_public_path__ = window.staticRoot;
-
-export const options = window.compilerExplorerOptions;
-export const optionsHash = configElement.getAttribute('optionsHash') ?? '';
+const source = resolve('vendor/monad');
+const build = resolve('out/monad-wasm');
+run('emcmake', ['cmake', '-S', `${source}/cmd/vm/mce/wasm`, '-B', build,
+    '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_TESTING=OFF']);
+run('cmake', ['--build', build, '--target', 'mce-wasm', '-j8']);
+mkdirSync('public/monad', {recursive: true});
+for (const file of ['mce-wasm.mjs', 'mce-wasm.wasm']) copyFileSync(`${build}/${file}`, `public/monad/${file}`);
+const revision = spawnSync('git', ['-C', source, 'rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
+if (revision.status !== 0) throw new Error('Cannot determine the Monad source revision');
+writeFileSync('public/monad/build.json', JSON.stringify({commit: revision.stdout.trim()}) + '\n');

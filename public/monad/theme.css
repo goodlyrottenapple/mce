@@ -1,0 +1,163 @@
+/* CE’s stock dark theme uses !important; these overrides need the same priority. */
+/* Monad palette: Purple #836EF9, Electric Ice #5FEDDF, White Rabbit #F8EDE7. */
+html[data-theme] body.monad-explorer {
+    --bs-body-bg: #100b1c;
+    --bs-body-color: #f8ede7;
+    --bs-primary: #836ef9;
+    color: #f8ede7 !important;
+    background: #100b1c !important;
+}
+html[data-theme] body.monad-explorer .navbar {
+    background: #171022 !important;
+    border-bottom: 1px solid #392b50;
+    padding: 10px 18px;
+    min-height: 72px;
+}
+html[data-theme] body.monad-explorer .navbar-brand.monad-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-right: 40px;
+    color: #f8ede7 !important;
+}
+.monad-wordmark {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+    gap: 6px;
+}
+.monad-wordmark strong {
+    font-size: 27px;
+    letter-spacing: -0.8px;
+    font-weight: 650;
+}
+.monad-wordmark > span {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: #b9abcf !important;
+}
+.monad-runtime {
+    color: #b8adc9 !important;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 20px;
+    white-space: nowrap;
+}
+.monad-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5feddf !important;
+}
+html[data-theme] body.monad-explorer .bg-light,
+html[data-theme] body.monad-explorer .top-bar,
+html[data-theme] body.monad-explorer .bottom-bar {
+    background: #1b1429 !important;
+    color: #d7cde5 !important;
+    border-color: #392b50 !important;
+}
+html[data-theme] body.monad-explorer .btn-light,
+html[data-theme] body.monad-explorer .btn-light:disabled,
+html[data-theme] body.monad-explorer .btn-outline-secondary {
+    background: #241a34 !important;
+    color: #d7cde5 !important;
+    border-color: #3a2b50 !important;
+}
+html[data-theme] body.monad-explorer .btn-light:hover,
+html[data-theme] body.monad-explorer .btn-light:focus-visible {
+    background: #392857 !important;
+    color: #fff !important;
+    border-color: #836ef9 !important;
+}
+html[data-theme] body.monad-explorer .btn.active,
+html[data-theme] body.monad-explorer .btn-primary {
+    background: #836ef9 !important;
+    color: #fff !important;
+    border-color: #a293ff !important;
+}
+html[data-theme] body.monad-explorer .nav-link {
+    color: #d7cde5 !important;
+}
+html[data-theme] body.monad-explorer .lm_header {
+    background: #171022 !important;
+}
+html[data-theme] body.monad-explorer .lm_header .lm_tab {
+    background: #21172f !important;
+    box-shadow: none;
+    border-top: 2px solid transparent;
+    color: #9d8caf !important;
+}
+html[data-theme] body.monad-explorer .lm_header .lm_tab.lm_active {
+    background: #291d3c !important;
+    border-top-color: #836ef9;
+    color: #f8ede7 !important;
+}
+html[data-theme] body.monad-explorer .lm_content {
+    border-color: #392b50 !important;
+    background: #100b1c !important;
+}
+html[data-theme] body.monad-explorer .lm_splitter {
+    background: #30213f !important;
+    opacity: 1;
+}
+html[data-theme] body.monad-explorer .form-control,
+html[data-theme] body.monad-explorer .ts-control,
+html[data-theme] body.monad-explorer .ts-dropdown {
+    background: #100b1c !important;
+    color: #f8ede7 !important;
+    border-color: #49335d !important;
+}
+html[data-theme] body.monad-explorer .dropdown-menu,
+html[data-theme] body.monad-explorer .modal-content {
+    background: #21172f !important;
+    color: #f8ede7 !important;
+    border-color: #49335d !important;
+}
+html[data-theme] body.monad-explorer .dropdown-item {
+    color: #d7cde5 !important;
+}
+html[data-theme] body.monad-explorer .dropdown-item:hover {
+    background: #392857 !important;
+    color: #fff !important;
+}
+html[data-theme] body.monad-explorer a {
+    color: #b6a7ff !important;
+}
+html[data-theme] body.monad-explorer .top-bar {
+    padding: 7px 8px;
+    gap: 4px;
+}
+html[data-theme] body.monad-explorer .monaco-placeholder {
+    background: #100b1c !important;
+}
+html[data-theme] body.monad-explorer #add-tree,
+html[data-theme] body.monad-explorer #loadSiteTemplate,
+html[data-theme] body.monad-explorer #otherDropdown,
+html[data-theme] body.monad-explorer #shareEmbed,
+html[data-theme] body.monad-explorer .add-executor,
+html[data-theme] body.monad-explorer .conformance,
+html[data-theme] body.monad-explorer .populararguments,
+html[data-theme] body.monad-explorer .options,
+html[data-theme] body.monad-explorer .picker-popout-button {
+    display: none !important;
+}
+html[data-theme] body.monad-explorer .compiler-picker {
+    min-width: 260px;
+}
+@media (max-width: 900px) {
+    .monad-runtime {
+        display: none;
+    }
+    html[data-theme] body.monad-explorer .navbar-brand.monad-brand {
+        margin-right: 10px;
+    }
+}
+
+html[data-theme] body.monad-explorer .ts-wrapper .ts-control {
+    background: #241a34 !important;
+    color: #f8ede7 !important;
+    border-color: #49335d !important;
+}

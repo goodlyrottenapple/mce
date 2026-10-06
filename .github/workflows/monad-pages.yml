@@ -1,0 +1,87 @@
+name: Monad Compiler Explorer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monad-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CYPRESS_INSTALL_BINARY: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the pinned compiler and its build dependencies
+        run: |
+          git submodule update --init --depth 1 vendor/monad
+          git -C vendor/monad submodule update --init --depth 1 \
+            third_party/asmjit third_party/evmc third_party/ethash third_party/unordered_dense
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - name: Install Emscripten
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          git -C "$RUNNER_TEMP/emsdk" checkout 96c657fc60920d2a6a82318aa50e0abf82749604
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.11
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.11
+          echo "$RUNNER_TEMP/emsdk/upstream/emscripten" >> "$GITHUB_PATH"
+      - run: npm ci
+      - name: Check types, style, and unit tests
+        run: |
+          npm run ts-check
+          npm run lint-check
+          npm run test-min
+      - name: Build static site and test the WASM compiler
+        run: |
+          npm run build:monad
+          npm run test:monad
+      - name: Test in Chromium under the Pages URL prefix
+        run: |
+          npx playwright install --with-deps chromium
+          PORT=10240 BASE_PATH=/mce/ npm run serve:monad > /tmp/mce-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:10240/mce/ > /dev/null; then break; fi
+            sleep 1
+          done
+          MCE_URL=http://127.0.0.1:10240/mce/ npm run test:monad:browser
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots
+          path: out/monad/*.png
+          if-no-files-found: ignore
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-monad
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

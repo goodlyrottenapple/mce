@@ -29,6 +29,7 @@ import _ from 'underscore';
 
 import type {BuildSystemId} from '../shared/build-systems.js';
 import {ResultLine} from '../types/resultline/resultline.interfaces.js';
+import {compileInBrowser} from './monad/compiler.js';
 import {options} from './options.js';
 
 import jqXHR = JQuery.jqXHR;
@@ -228,6 +229,11 @@ export class CompilerService {
                 };
             }
         }
+        if (options.monadWasm) {
+            const result = await compileInBrowser(request);
+            if (result.okToCache && options.doCache) this.cache.set(jsonRequest, result);
+            return {request, result, localCacheHit: false};
+        }
         return new Promise((resolve, reject) => {
             const compilerId = encodeURIComponent(request.compiler);
             $.ajax({
@@ -292,6 +298,7 @@ export class CompilerService {
     }
 
     public requestPopularArguments(compilerId: string, usedOptions: string) {
+        if (options.monadWasm) return Promise.resolve({request: compilerId, result: {}, localCacheHit: false});
         return new Promise((resolve, reject) => {
             $.ajax({
                 type: 'POST',

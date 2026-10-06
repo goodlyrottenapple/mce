@@ -34,6 +34,7 @@ import * as BootstrapUtils from '../bootstrap-utils.js';
 import * as history from '../history.js';
 import {HistorySource} from '../history.js';
 import {localStorage} from '../local.js';
+import {options} from '../options.js';
 import {Alert} from './alert.js';
 
 type PopulateItem = {name: string; load: () => void; delete?: () => void; overwrite?: () => void};
@@ -75,6 +76,7 @@ export class LoadSave {
     }
 
     private async fetchBuiltins(): Promise<SourceApiEntry[]> {
+        if (options.monadWasm) return [];
         return new Promise(resolve => {
             $.getJSON(window.location.origin + this.base + 'source/builtin/list', resolve);
         });

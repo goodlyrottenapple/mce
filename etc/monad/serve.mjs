@@ -22,36 +22,26 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-import {options} from '../options.js';
+import {createReadStream} from 'node:fs';
+import {stat} from 'node:fs/promises';
+import {createServer} from 'node:http';
+import {extname, resolve, sep} from 'node:path';
 
-async function fetchJsonOnce<T>(url: string, cache: RequestCache): Promise<T> {
-    if (options.monadWasm) {
-        const path = new URL(url, document.baseURI).pathname;
-        const prefix = `${window.httpRoot}api/`;
-        if (path.startsWith(prefix)) url = `${window.staticRoot}monad/api/${path.slice(prefix.length)}.json`;
-    }
-    const response = await fetch(url, {headers: {Accept: 'application/json'}, cache});
-    const body = await response.text();
-    const describe = () =>
-        `status ${response.status}, ${body.length} bytes, ` +
-        `content-type ${response.headers.get('content-type')}, x-cache ${response.headers.get('x-cache')}, ` +
-        `starts with ${JSON.stringify(body.slice(0, 40))}`;
-    if (!response.ok) throw new Error(`Failed to fetch ${url} (${describe()})`);
+const root = resolve('dist-monad');
+const port = Number(process.env.PORT ?? 10240);
+const prefix = process.env.BASE_PATH ?? '/';
+const types = {'.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
+    '.wasm': 'application/wasm', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2'};
+createServer(async (request, response) => {
     try {
-        return JSON.parse(body);
-    } catch (e) {
-        throw new Error(`Invalid JSON from ${url} (${describe()}): ${e}`);
-    }
-}
-
-/**
- * Fetches and parses a JSON API response, retrying once with the browser cache bypassed. Errors describe the
- * response actually received, since empty bodies and cached non-JSON responses have both been seen in the wild.
- */
-export async function fetchJson<T>(url: string): Promise<T> {
-    try {
-        return await fetchJsonOnce<T>(url, 'default');
+        const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+        if (!pathname.startsWith(prefix)) throw new Error('Not found');
+        let file = resolve(root, pathname.slice(prefix.length) || 'index.html');
+        if (file !== root && !file.startsWith(root + sep)) throw new Error('Not found');
+        if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
+        response.writeHead(200, {'Content-Type': types[extname(file)] ?? 'application/octet-stream'});
+        createReadStream(file).pipe(response);
     } catch {
-        return await fetchJsonOnce<T>(url, 'reload');
+        response.writeHead(404); response.end('Not found');
     }
-}
+}).listen(port, '127.0.0.1', () => console.log(`Monad Compiler Explorer: http://127.0.0.1:${port}${prefix}`));
