@@ -36,13 +36,18 @@ cpSync('public/monad', `${destination}/static/monad`, {recursive: true});
 const build = JSON.parse(readFileSync('public/monad/build.json', 'utf8'));
 const manifest = JSON.parse(readFileSync('out/dist/manifest.json', 'utf8'));
 const example = '6000\n35\n6001\n01\n6000\n52\n6020\n6000\nf3';
-const language = {
+const hexLanguage = {
     id: 'evm', name: 'EVM bytecode', monaco: 'evm', extensions: ['.hex'], alias: [],
     formatter: null, supportsExecute: false, logoFilename: null, logoFilenameDark: null,
     example, previewFilter: null, monacoDisassembly: 'asm', defaultCompiler: 'monad-wasm-latest', defaultLibs: '',
 };
-const compilers = revisions.map((revision, index) => ({
-    id: `monad-wasm-${revision}`, name: `Monad · ${revision.replace('monad_', 'Monad ').toUpperCase()}`,
+const mnemonicLanguage = {
+    ...hexLanguage, id: 'mevm', name: 'EVM mnemonics', monaco: 'mevm', extensions: ['.mevm'],
+    example: readFileSync('examples/mevm/default.mevm', 'utf8'), defaultCompiler: 'monad-mnemonic-latest',
+};
+const languages = {mevm: mnemonicLanguage, evm: hexLanguage};
+const hexCompilers = revisions.map((revision, index) => ({
+    id: `monad-wasm-${revision}`, name: `Monad x86-64 · ${revision.replace('monad_', 'Monad ').toUpperCase()}`,
     lang: 'evm', version: build.commit.slice(0, 12), fullVersion: `Monad ${build.commit} · WebAssembly`,
     baseName: 'Monad', alias: [], options: '', group: 'monad-wasm', groupName: 'Monad · x86-64',
     compilerType: 'monad', notification: '', compilerCategories: ['Monad'], instructionSet: 'amd64',
@@ -52,20 +57,31 @@ const compilers = revisions.map((revision, index) => ({
     disabledFilters: ['binary', 'binaryObject', 'execute', 'intel', 'demangle', 'libraryCode', 'labels', 'trim'],
     $order: index,
 }));
+const mnemonicCompilers = hexCompilers.map(compiler => ({
+    ...compiler, id: compiler.id.replace('monad-wasm-', 'monad-mnemonic-'), lang: 'mevm',
+}));
+mnemonicCompilers.push({
+    ...mnemonicCompilers[0], id: 'monad-bytecode', name: 'EVM bytecode',
+    group: 'monad-bytecode', groupName: 'EVM bytecode', instructionSet: 'evm', $order: revisions.length,
+});
+const compilers = [...mnemonicCompilers, ...hexCompilers];
+const perLanguage = value => Object.fromEntries(Object.keys(languages).map(id => [id, value]));
 const policies = {cookies: {enabled: false, key: 'monad-cookies'}, privacy: {enabled: false, key: 'monad-privacy'}};
 const options = {
     monadWasm: true, sharingEnabled: true, githubEnabled: false, showSponsors: false,
-    defaultSource: '', compilers, languages: {evm: language},
-    libs: {evm: {}}, remoteLibs: {}, tools: {evm: {}}, defaultLibs: {evm: ''},
-    defaultCompiler: {evm: 'monad-wasm-latest'}, compileOptions: {evm: ''},
-    supportsBinary: {evm: false}, supportsBinaryObject: {evm: false}, supportsExecute: false,
+    defaultSource: '', compilers, languages,
+    libs: perLanguage({}), remoteLibs: {}, tools: perLanguage({}), defaultLibs: perLanguage(''),
+    defaultCompiler: {evm: 'monad-wasm-latest', mevm: 'monad-mnemonic-latest'}, compileOptions: perLanguage(''),
+    supportsBinary: perLanguage(false), supportsBinaryObject: perLanguage(false), supportsExecute: false,
     supportsLibraryCodeFilter: false, sources: [], sentryDsn: '', release: build.commit.slice(0, 12),
     cookieDomainRe: '', localStoragePrefix: 'monad-ce-', cvCompilerCountMax: 6, defaultFontScale: 15,
     doCache: true, thirdPartyIntegrationEnabled: false, statusTrackingEnabled: false,
     policies, motdUrl: '', pageloadUrl: '', explainApiEndpoint: '', urlShortenService: 'none',
     mobileViewer: false, readOnly: false,
 };
-for (const [path, data] of Object.entries({languages: [language], 'compilers/evm': compilers, 'libraries/evm': [], 'tools/evm': []})) {
+for (const [path, data] of Object.entries({languages: Object.values(languages),
+    'compilers/evm': hexCompilers, 'compilers/mevm': mnemonicCompilers,
+    'libraries/evm': [], 'tools/evm': [], 'libraries/mevm': [], 'tools/mevm': []})) {
     const file = `${destination}/static/monad/api/${path}.json`;
     mkdirSync(file.slice(0, file.lastIndexOf('/')), {recursive: true});
     writeFileSync(file, JSON.stringify(data));
@@ -74,7 +90,7 @@ let html = pug.renderFile('views/index.pug', {
     ...options, monadStatic: true, httpRoot: './', staticRoot, storageSolution: 'null',
     compilerExplorerOptions: JSON.stringify(options), optionsHash: build.commit, faviconFilename: 'monad/icon.svg',
     extraBodyClass: 'monad-explorer', metadata: {ogTitle: 'Monad Compiler Explorer',
-        ogDescription: 'Explore Monad’s x86-64 assembly. Compile EVM bytecode directly in your browser.'},
+        ogDescription: 'Explore Monad’s x86-64 assembly. Compile EVM mnemonics to bytecode or x86-64 directly in your browser.'},
     require: name => `${staticRoot}${basename(manifest[name] ?? name)}`,
 });
 html = html.replace('</head>', `<link rel="stylesheet" href="${staticRoot}monad/theme.css"></head>`);

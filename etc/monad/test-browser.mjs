@@ -43,14 +43,27 @@ try {
     assert.equal(await page.locator('.monad-wordmark strong').textContent(), 'monad');
     assert.equal(await page.locator('.monad-wordmark > span').textContent(), 'Compiler Explorer');
     const initial = await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'asm').getValue());
-    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('600560060160005200'));
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push1 5\npush1 6\nadd\npush1 0\nmstore\nstop'));
     await page.waitForFunction(before => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:') && model.getValue() !== before), initial);
+    const compilerPicker = page.locator('.lm_content select.compiler-picker');
+    await compilerPicker.evaluate(select => select.tomselect.setValue('monad-bytecode'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'evm' && model.getValue().replace(/\s/g, '') === '600560060160005200'));
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push .end jump\njumpdest .end stop'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'evm' && model.getValue().replace(/\s/g, '') === '6003565b00'));
     await page.locator('.lm_content .output-btn').click();
-    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('gg'));
-    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getValue().includes('Malformed hex')) || document.body.innerText.includes('Malformed hex'));
-    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('6000\n35\n6001\n01\n6000\n52\n6020\n6000\nf3'));
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('// comment\nwat'));
+    await page.waitForFunction(() => document.body.innerText.includes('Line 2: unknown opcode'));
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push1 0\ncalldataload\npush1 1\nadd\npush1 0\nmstore\npush1 32\npush1 0\nreturn'));
+    await compilerPicker.evaluate(select => select.tomselect.setValue('monad-mnemonic-latest'));
     await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:')));
     await page.locator('.lm_tab').filter({hasText: 'Output'}).locator('.lm_close_tab').click();
+    const languagePicker = page.locator('.lm_content select.change-language');
+    await languagePicker.evaluate(select => select.tomselect.setValue('evm'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'evm') && document.querySelector('.lm_content select.compiler-picker').value === 'monad-wasm-latest');
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'evm').setValue('60003560010160005200'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:')));
+    await languagePicker.evaluate(select => select.tomselect.setValue('mevm'));
+    await page.waitForFunction(() => document.querySelector('.lm_content select.compiler-picker').value === 'monad-mnemonic-latest' && window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:')));
     await page.waitForFunction(() => window.monaco.editor.getEditors().every(editor => !editor.getDomNode()?.offsetParent || Math.abs(editor.getLayoutInfo().width - editor.getDomNode().parentElement.clientWidth) < 5));
     const palette = await page.evaluate(() => ({
         header: getComputedStyle(document.querySelector('nav')).backgroundColor,
@@ -67,7 +80,7 @@ try {
     await page.setViewportSize({width: 768, height: 1024});
     await page.waitForFunction(() => window.monaco.editor.getEditors().every(editor => !editor.getDomNode()?.offsetParent || Math.abs(editor.getLayoutInfo().width - editor.getDomNode().parentElement.clientWidth) < 5));
     await page.screenshot({path: 'out/monad/tablet.png', fullPage: true});
-    console.log(`Browser checks passed at ${url}: compile, edit, errors, recovery, source mapping and static-only requests.`);
+    console.log(`Browser checks passed at ${url}: mnemonics, x86, bytecode, labels, errors, recovery, hex input and static-only requests.`);
 } catch (error) {
     mkdirSync('out/monad', {recursive: true});
     await page?.screenshot({path: 'out/monad/failure.png', fullPage: true});

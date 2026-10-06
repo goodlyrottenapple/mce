@@ -1,6 +1,6 @@
 # Monad Compiler Explorer
 
-A static build of Compiler Explorer that compiles EVM bytecode to x86-64 assembly
+A static build of Compiler Explorer that compiles EVM mnemonics to bytecode or x86-64 assembly
 with Monad's real compiler, running locally in a WebAssembly worker. The default
 UI uses Monad purple, dark panels, and the Monad Compiler Explorer wordmark.
 
@@ -16,9 +16,31 @@ npm run serve:monad
 ```
 
 Open **http://127.0.0.1:10240/**. The preview server only serves files; compilation
-happens in the browser. Paste hex EVM bytecode, optionally prefixed by `0x`, and
-choose an EVM or Monad revision from the compiler picker. Whitespace is allowed.
-`.mevm` mnemonic source and Solidity are not supported by this first target.
+happens in the browser. Select **EVM mnemonics** in the editor's language picker
+and enter `.mevm` source. Choose **Monad x86-64 · LATEST** (or another revision)
+for assembly, or **EVM bytecode** for hex output. Add a second compiler pane to
+view both outputs side by side.
+
+```text
+// Return 42 in a 32-byte word
+push 42
+push 0
+mstore
+push 32
+push 0
+return
+```
+
+Mnemonics are case-insensitive and support decimal/hex constants, `PUSH` with
+automatic sizing, `PUSH1`–`PUSH32`, `//` comments, and labels such as
+`push .end jump jumpdest .end`. Errors include source line numbers. Bytecode
+output has one instruction per line; concatenate the lines for continuous hex.
+The mnemonic assembler uses native MCE's latest-stable instruction set; the
+revision picker controls x86 compilation.
+
+**EVM bytecode** in the language picker retains the original hex-input mode,
+including whitespace and an optional `0x` prefix. Existing saved hex layouts
+continue to work. Solidity source is not supported.
 
 Edits compile automatically. CE's source/assembly highlighting, multiple compiler
 panes, diff panes, local file loading/saving, and full share links remain available.
@@ -34,7 +56,7 @@ After compiler changes, use the full `npm run build:monad` command.
 `vendor/monad` is a submodule of
 [monad-crypto/monad](https://github.com/monad-crypto/monad/tree/sam/mce_wasm),
 tracking `sam/mce_wasm` and pinned to
-`63d1ce780f518a89f40ffb0219f31ea15386ee3e`. This revision contains the assembly-only
+`23c13a5a126d43eacd372013617d0e4c9379b0ad`. This revision contains the assembly-only
 WASM target. Initialise only the dependencies this target needs:
 
 ```sh

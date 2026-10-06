@@ -24,6 +24,7 @@
 
 export type LanguageKey =
     | 'evm'
+    | 'mevm'
     | 'ada'
     | 'algol68'
     | 'analysis'

@@ -35,3 +35,17 @@ languages.setMonarchTokensProvider('evm', {
         ],
     },
 });
+
+languages.register({id: 'mevm', extensions: ['.mevm']});
+languages.setMonarchTokensProvider('mevm', {
+    tokenizer: {
+        root: [
+            [/\/\/.*$/, 'comment'],
+            [/\.[a-zA-Z0-9_]+/, 'type.identifier'],
+            [/0[xX][0-9a-fA-F]+|\d+/, 'number'],
+            [/[a-zA-Z][a-zA-Z0-9]*/, 'keyword'],
+            [/\s+/, 'white'],
+            [/./, 'invalid'],
+        ],
+    },
+});

@@ -37,7 +37,7 @@ export const revisions = [
     ),
 ];
 
-export function assemblyLines(assembly, source, filters = {}) {
+function hexSourceLines(source) {
     const byteLines = [];
     const input = source.replace(/^(\s*)0x/i, '$1');
     let nibble = 0;
@@ -47,6 +47,11 @@ export function assemblyLines(assembly, source, filters = {}) {
             if (nibble++ % 2 === 0) byteLines.push(index + 1);
         }
     }
+    return byteLines;
+}
+
+export function assemblyLines(assembly, source, filters = {}, sourceLines = null) {
+    const byteLines = sourceLines ?? hexSourceLines(source);
     let sourceLine = null;
     return assembly.split('\n').flatMap(text => {
         const match = text.match(/^\s*\/\/\s+0x([0-9a-f]+):/i);
@@ -58,8 +63,24 @@ export function assemblyLines(assembly, source, filters = {}) {
     });
 }
 
+function bytecodeLines(bytecode, sourceLines) {
+    const lines = [];
+    for (let offset = 0; offset < bytecode.length / 2; ) {
+        const opcode = Number.parseInt(bytecode.slice(offset * 2, offset * 2 + 2), 16);
+        const size = 1 + (opcode >= 0x60 && opcode <= 0x7f ? opcode - 0x5f : 0);
+        lines.push({
+            text: bytecode.slice(offset * 2, (offset + size) * 2),
+            source: {file: null, line: sourceLines[offset]},
+        });
+        offset += size;
+    }
+    return lines;
+}
+
 export async function compileRequest(modulePromise, request) {
     const start = performance.now();
+    const bytecodeOutput = request.compiler === 'monad-bytecode';
+    const mnemonic = bytecodeOutput || request.compiler.startsWith('monad-mnemonic-');
     const base = {
         timedOut: false,
         didExecute: false,
@@ -68,12 +89,12 @@ export async function compileRequest(modulePromise, request) {
         tools: [],
         code: 0,
         okToCache: true,
-        inputFilename: 'example.hex',
+        inputFilename: mnemonic ? 'example.mevm' : 'example.hex',
         languageId: 'asm',
         instructionSet: 'amd64',
     };
     try {
-        const revision = request.compiler.replace(/^monad-wasm-/, '');
+        const revision = bytecodeOutput ? 'latest' : request.compiler.replace(/^monad-(?:wasm|mnemonic)-/, '');
         if (!revisions.includes(revision)) throw new Error(`Unsupported compiler: ${request.compiler}`);
         if (request.options?.userArguments?.trim()) {
             throw new Error(
@@ -81,9 +102,27 @@ export async function compileRequest(modulePromise, request) {
             );
         }
         const module = await modulePromise;
-        const result = module.compileHex(request.source, revision);
+        let hex = request.source;
+        let sourceLines = null;
+        if (mnemonic) {
+            const assembled = module.assembleMnemonic(request.source);
+            if (assembled.error) throw new Error(assembled.error);
+            hex = assembled.bytecode;
+            sourceLines = assembled.sourceLines;
+            if (bytecodeOutput) {
+                return {
+                    ...base,
+                    asm: bytecodeLines(hex, sourceLines),
+                    asmSize: hex.length / 2,
+                    languageId: 'evm',
+                    instructionSet: 'evm',
+                    execTime: performance.now() - start,
+                };
+            }
+        }
+        const result = module.compileHex(hex, revision);
         if (result.error) throw new Error(result.error);
-        const asm = assemblyLines(result.assembly, request.source, request.options?.filters);
+        const asm = assemblyLines(result.assembly, request.source, request.options?.filters, sourceLines);
         return {...base, asm, execTime: performance.now() - start};
     } catch (error) {
         return {...base, code: 1, okToCache: false, asm: [], stderr: [{text: String(error.message ?? error)}]};

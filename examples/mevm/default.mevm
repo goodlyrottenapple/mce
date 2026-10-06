@@ -1,0 +1,10 @@
+// Return calldata[0] + 1
+push1 0
+calldataload
+push1 1
+add
+push1 0
+mstore
+push1 32
+push1 0
+return

@@ -72,3 +72,72 @@ test('module load failures become readable compiler errors', async () => {
     assert.equal(result.code, 1);
     assert.equal(result.stderr[0].text, 'Failed to load WASM');
 });
+
+test('assembles mnemonic source to bytecode and identical x86 for every revision', async () => {
+    const source = '// add two constants\npush1 1\nPUSH2 0x0002\nadd\nstop';
+    const hex = '60016100020100';
+    const bytecode = await compileRequest(module, {source, compiler: 'monad-bytecode'});
+    assert.equal(bytecode.code, 0, JSON.stringify(bytecode.stderr));
+    assert.equal(bytecode.asm.map(line => line.text).join(''), hex);
+    assert.deepEqual(
+        bytecode.asm.map(line => line.source.line),
+        [2, 3, 4, 5],
+    );
+    assert.equal(bytecode.asmSize, 7);
+    assert.equal(bytecode.languageId, 'evm');
+    for (const revision of revisions) {
+        const mnemonic = await compileRequest(module, {source, compiler: `monad-mnemonic-${revision}`});
+        const binary = await compileRequest(module, request(hex, revision));
+        assert.equal(mnemonic.code, 0, JSON.stringify(mnemonic.stderr));
+        assert.deepEqual(
+            mnemonic.asm.map(line => line.text),
+            binary.asm.map(line => line.text),
+        );
+        assert.ok(mnemonic.asm.some(line => line.source?.line === 2));
+    }
+});
+
+test('resolves labels and PUSH widths using the real mnemonic assembler', async () => {
+    const mce = await module;
+    for (const [source, expected] of [
+        ['push 0 push 255 push 256', '5f60ff610100'],
+        ['push .end jump jumpdest .end stop', '6003565b00'],
+        ['jumpdest .start push .start jump', '5b5f56'],
+        ['push32 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff stop', `7f${'ff'.repeat(32)}00`],
+        ['// empty\n', ''],
+        ['push\t42\r\nstop', '602a00'],
+    ]) {
+        const result = mce.assembleMnemonic(source);
+        assert.equal(result.error, '', source);
+        assert.equal(result.bytecode, expected, source);
+        assert.equal(result.sourceLines.length, expected.length / 2);
+    }
+    const source = `push .end jump\n${'stop\n'.repeat(254)}jumpdest .end`;
+    assert.ok(mce.assembleMnemonic(source).bytecode.startsWith('61010256'));
+});
+
+test('reports mnemonic errors with source lines and recovers without restarting WASM', async () => {
+    for (const source of [
+        'push1',
+        'push1 256',
+        'push33 1',
+        'push1 -1',
+        'push1 0xgg',
+        'jumpdest .same jumpdest .same',
+        'push .missing jump',
+        'wat',
+        '0xab',
+        'push1 0; stop',
+        '/',
+        'stop\0add',
+        'push 0x' + 'f'.repeat(65),
+    ]) {
+        const result = await compileRequest(module, {source: `// comment\n${source}`, compiler: 'monad-bytecode'});
+        assert.equal(result.code, 1, source);
+        assert.equal(result.okToCache, false, source);
+        assert.ok(result.stderr[0].text.length > 0, source);
+        if (!source.includes('\0')) assert.match(result.stderr[0].text, /Line 2:/, source);
+    }
+    const recovered = await compileRequest(module, {source: 'push 42 stop', compiler: 'monad-mnemonic-latest'});
+    assert.equal(recovered.code, 0, JSON.stringify(recovered.stderr));
+});

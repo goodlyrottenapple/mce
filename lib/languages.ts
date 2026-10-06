@@ -43,6 +43,17 @@ type DefKeys =
 type LanguageDefinition = Pick<Language, DefKeys>;
 
 const definitions: Record<LanguageKey, LanguageDefinition> = {
+    mevm: {
+        name: 'EVM mnemonics',
+        monaco: 'mevm',
+        extensions: ['.mevm'],
+        alias: [],
+        logoFilename: null,
+        logoFilenameDark: null,
+        formatter: null,
+        previewFilter: null,
+        monacoDisassembly: 'asm',
+    },
     evm: {
         name: 'EVM bytecode',
         monaco: 'evm',
