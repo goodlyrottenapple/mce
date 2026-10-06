@@ -141,3 +141,20 @@ test('reports mnemonic errors with source lines and recovers without restarting 
     const recovered = await compileRequest(module, {source: 'push 42 stop', compiler: 'monad-mnemonic-latest'});
     assert.equal(recovered.code, 0, JSON.stringify(recovered.stderr));
 });
+
+test('shows symbolic runtime calls when comments and directives are filtered', async () => {
+    const result = await compileRequest(
+        module,
+        request('6000316000356001350460005200', 'latest', {
+            filters: {commentOnly: true, directives: true},
+        }),
+    );
+    assert.equal(result.code, 0, JSON.stringify(result.stderr));
+    const text = result.asm.map(line => line.text).join('\n');
+    assert.match(text, /^call qword ptr \[runtime_balance_ptr\]$/m);
+    assert.match(text, /^call qword ptr \[runtime_udiv_ptr\]$/m);
+    assert.match(text, /^call qword ptr \[monad_vm_runtime_increase_memory_raw_v1_ptr\]$/m);
+    assert.match(text, /^call qword ptr \[monad_vm_runtime_load_bounded_le_raw_ptr\]$/m);
+    assert.doesNotMatch(text, /^call qword ptr \[ROD/m);
+    assert.doesNotMatch(text, /^\/\//m);
+});

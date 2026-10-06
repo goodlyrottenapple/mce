@@ -43,6 +43,9 @@ try {
     assert.equal(await page.locator('.monad-wordmark strong').textContent(), 'monad');
     assert.equal(await page.locator('.monad-wordmark > span').textContent(), 'Compiler Explorer');
     const initial = await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'asm').getValue());
+    assert.match(initial, /call qword ptr \[monad_vm_runtime_increase_memory_raw_v1_ptr\]/);
+    assert.match(initial, /call qword ptr \[monad_vm_runtime_load_bounded_le_raw_ptr\]/);
+    assert.doesNotMatch(initial, /call qword ptr \[ROD/);
     await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push1 5\npush1 6\nadd\npush1 0\nmstore\nstop'));
     await page.waitForFunction(before => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:') && model.getValue() !== before), initial);
     const compilerPicker = page.locator('.lm_content select.compiler-picker');

@@ -56,7 +56,7 @@ After compiler changes, use the full `npm run build:monad` command.
 `vendor/monad` is a submodule of
 [monad-crypto/monad](https://github.com/monad-crypto/monad/tree/sam/mce_wasm),
 tracking `sam/mce_wasm` and pinned to
-`23c13a5a126d43eacd372013617d0e4c9379b0ad`. This revision contains the assembly-only
+`a3d9afd17b2a6b6dd9f64daf8b8d9129f38e7aa4`. This revision contains the assembly-only
 WASM target. Initialise only the dependencies this target needs:
 
 ```sh
@@ -66,8 +66,10 @@ git -C vendor/monad submodule update --init \
 ```
 
 The build records the source commit in `static/monad/build.json`, and the compiler
-picker displays that revision. Runtime helper addresses in the assembly listing
-are labelled placeholders; generated x86 code is never executed by this site.
+picker displays that revision. Runtime calls use named function-pointer slots,
+for example `call qword ptr [runtime_balance_ptr]`, including when comments are
+filtered out. The slot bytes are placeholders; generated x86 code is never
+executed by this site.
 
 ## Static hosting / GitHub Pages
 
