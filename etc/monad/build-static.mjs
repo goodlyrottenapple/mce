@@ -22,7 +22,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-import {cpSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync} from 'node:fs';
 import {basename} from 'node:path';
 import pug from 'pug';
 import {revisions} from '../../public/monad/adapter.mjs';
@@ -32,7 +33,12 @@ const staticRoot = './static/';
 if (!existsSync('public/monad/mce-wasm.wasm')) throw new Error('Run npm run build:monad:wasm first');
 mkdirSync(destination, {recursive: true});
 cpSync('out/webpack/static', `${destination}/static`, {recursive: true});
-cpSync('public/monad', `${destination}/static/monad`, {recursive: true});
+const assetHash = createHash('sha256').update(readFileSync(import.meta.filename));
+for (const file of readdirSync('public/monad').sort()) {
+    assetHash.update(file).update(readFileSync(`public/monad/${file}`));
+}
+const monadAssetsPath = `monad/${assetHash.digest('hex').slice(0, 16)}/`;
+cpSync('public/monad', `${destination}/static/${monadAssetsPath}`, {recursive: true});
 const build = JSON.parse(readFileSync('public/monad/build.json', 'utf8'));
 const manifest = JSON.parse(readFileSync('out/dist/manifest.json', 'utf8'));
 const example = '6000\n35\n6001\n01\n6000\n52\n6020\n6000\nf3';
@@ -68,7 +74,7 @@ const compilers = [...mnemonicCompilers, ...hexCompilers];
 const perLanguage = value => Object.fromEntries(Object.keys(languages).map(id => [id, value]));
 const policies = {cookies: {enabled: false, key: 'monad-cookies'}, privacy: {enabled: false, key: 'monad-privacy'}};
 const options = {
-    monadWasm: true, sharingEnabled: true, githubEnabled: false, showSponsors: false,
+    monadWasm: true, monadAssetsPath, sharingEnabled: true, githubEnabled: false, showSponsors: false,
     defaultSource: '', compilers, languages,
     libs: perLanguage({}), remoteLibs: {}, tools: perLanguage({}), defaultLibs: perLanguage(''),
     defaultCompiler: {evm: 'monad-wasm-latest', mevm: 'monad-mnemonic-latest'}, compileOptions: perLanguage(''),
@@ -82,18 +88,18 @@ const options = {
 for (const [path, data] of Object.entries({languages: Object.values(languages),
     'compilers/evm': hexCompilers, 'compilers/mevm': mnemonicCompilers,
     'libraries/evm': [], 'tools/evm': [], 'libraries/mevm': [], 'tools/mevm': []})) {
-    const file = `${destination}/static/monad/api/${path}.json`;
+    const file = `${destination}/static/${monadAssetsPath}api/${path}.json`;
     mkdirSync(file.slice(0, file.lastIndexOf('/')), {recursive: true});
     writeFileSync(file, JSON.stringify(data));
 }
 let html = pug.renderFile('views/index.pug', {
     ...options, monadStatic: true, httpRoot: './', staticRoot, storageSolution: 'null',
-    compilerExplorerOptions: JSON.stringify(options), optionsHash: build.commit, faviconFilename: 'monad/icon.svg',
+    compilerExplorerOptions: JSON.stringify(options), optionsHash: build.commit, faviconFilename: `${monadAssetsPath}icon.svg`,
     extraBodyClass: 'monad-explorer', metadata: {ogTitle: 'Monad Compiler Explorer',
         ogDescription: 'Explore Monad’s x86-64 assembly. Compile EVM mnemonics to bytecode or x86-64 directly in your browser.'},
     require: name => `${staticRoot}${basename(manifest[name] ?? name)}`,
 });
-html = html.replace('</head>', `<link rel="stylesheet" href="${staticRoot}monad/theme.css"></head>`);
+html = html.replace('</head>', `<link rel="stylesheet" href="${staticRoot}${monadAssetsPath}theme.css"></head>`);
 writeFileSync(`${destination}/index.html`, html);
 writeFileSync(`${destination}/.nojekyll`, '');
 cpSync('LICENSE', `${destination}/CE-LICENSE`);

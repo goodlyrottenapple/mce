@@ -23,6 +23,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 import type {CompilationResult} from '../../types/compilation/compilation.interfaces.js';
+import {options} from '../options.js';
 
 let worker: Worker | undefined;
 let nextId = 0;
@@ -47,7 +48,7 @@ function resetWorker(error: Error) {
 
 export function compileInBrowser(request: Record<string, any>): Promise<CompilationResult> {
     if (!worker) {
-        worker = new Worker(`${window.staticRoot}monad/worker.mjs`, {type: 'module'});
+        worker = new Worker(`${window.staticRoot}${options.monadAssetsPath ?? 'monad/'}worker.mjs`, {type: 'module'});
         worker.onmessage = ({data}: MessageEvent<{id: number; result: CompilationResult}>) => {
             const job = pending.get(data.id);
             if (!job) return;

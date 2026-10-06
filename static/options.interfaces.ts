@@ -49,6 +49,7 @@ export type LibsPerRemote = Record<string, LanguageLibs>;
 
 export type Options = {
     monadWasm?: boolean;
+    monadAssetsPath?: string;
     defaultFontScale: number;
     sentryDsn?: string;
     release?: string;

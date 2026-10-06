@@ -28,7 +28,8 @@ async function fetchJsonOnce<T>(url: string, cache: RequestCache): Promise<T> {
     if (options.monadWasm) {
         const path = new URL(url, document.baseURI).pathname;
         const prefix = `${window.httpRoot}api/`;
-        if (path.startsWith(prefix)) url = `${window.staticRoot}monad/api/${path.slice(prefix.length)}.json`;
+        if (path.startsWith(prefix))
+            url = `${window.staticRoot}${options.monadAssetsPath ?? 'monad/'}api/${path.slice(prefix.length)}.json`;
     }
     const response = await fetch(url, {headers: {Accept: 'application/json'}, cache});
     const body = await response.text();

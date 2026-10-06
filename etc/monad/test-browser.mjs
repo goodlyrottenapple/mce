@@ -73,7 +73,7 @@ try {
     assert.equal(palette.wordmark, 'rgb(248, 237, 231)');
     assert.deepEqual(errors, []);
     assert.equal(requests.filter(request => request.method === 'POST').length, 0, 'Static site made a POST request');
-    assert.ok(requests.some(request => request.url.endsWith('mce-wasm.wasm')));
+    assert.match(requests.find(request => request.url.endsWith('mce-wasm.wasm'))?.url ?? '', /\/monad\/[0-9a-f]{16}\/mce-wasm\.wasm$/);
     assert.equal(requests.filter(request => !request.url.startsWith(new URL(url).origin)).length, 0, 'External runtime request');
     mkdirSync('out/monad', {recursive: true});
     await page.screenshot({path: 'out/monad/desktop.png', fullPage: true});
