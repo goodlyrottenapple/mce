@@ -48,16 +48,30 @@ try {
     assert.doesNotMatch(initial, /call qword ptr \[ROD/);
     await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push0\npush1 10\njumpdest .loop\ndup1\niszero\npush .done\njumpi\npush .loop\njump\njumpdest .done\nstop'));
     await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('je Bc')));
-    const branchPosition = await page.evaluate(() => {
-        const editor = window.monaco.editor.getEditors().find(editor => editor.getModel()?.getLanguageId() === 'asm');
-        const lineNumber = editor.getModel().getLinesContent().findIndex(line => line === 'je Bc') + 1;
-        editor.revealLineInCenter(lineNumber, window.monaco.editor.ScrollType.Immediate);
-        const position = editor.getScrolledVisiblePosition({lineNumber, column: 2});
-        const bounds = editor.getDomNode().getBoundingClientRect();
-        return {x: bounds.x + position.left, y: bounds.y + position.top + position.height / 2};
-    });
-    await page.mouse.move(branchPosition.x, branchPosition.y);
-    await page.waitForFunction(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').getAllDecorations().some(decoration => decoration.options.className === 'linked-code-decoration-line' && decoration.range.startLineNumber === 7));
+    for (const [instruction, sourceLine] of [
+        ['je Bc', 7],
+        ['short jmp B3', 9],
+        ['cmp qword ptr [rsp+48], 1022', null],
+        ['vpxor ymm0, ymm0, ymm0', null],
+    ]) {
+        const position = await page.evaluate(instruction => {
+            const editor = window.monaco.editor.getEditors().find(editor => editor.getModel()?.getLanguageId() === 'asm');
+            const model = editor.getModel();
+            const lineNumber = model.getLinesContent().findIndex(line => line === instruction) + 1;
+            if (!lineNumber) throw new Error(`Missing instruction: ${instruction}`);
+            editor.revealLineInCenter(lineNumber, window.monaco.editor.ScrollType.Immediate);
+            const position = editor.getScrolledVisiblePosition({lineNumber, column: 2});
+            const bounds = editor.getDomNode().getBoundingClientRect();
+            const coloured = model.getLineDecorations(lineNumber).some(decoration => decoration.options.className?.includes('line-linkage'));
+            return {x: bounds.x + position.left, y: bounds.y + position.top + position.height / 2, coloured};
+        }, instruction);
+        assert.equal(position.coloured, sourceLine !== null, instruction);
+        await page.mouse.move(position.x, position.y);
+        await page.waitForFunction(sourceLine => {
+            const linked = window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').getAllDecorations().filter(decoration => decoration.options.className === 'linked-code-decoration-line');
+            return sourceLine === null ? linked.length === 0 : linked.some(decoration => decoration.range.startLineNumber === sourceLine);
+        }, sourceLine);
+    }
     await page.mouse.move(0, 0);
     await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push1 5\npush1 6\nadd\npush1 0\nmstore\nstop'));
     await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:') && !model.getValue().includes('je Bc')));
@@ -96,7 +110,7 @@ try {
     await page.setViewportSize({width: 768, height: 1024});
     await page.waitForFunction(() => window.monaco.editor.getEditors().every(editor => !editor.getDomNode()?.offsetParent || Math.abs(editor.getLayoutInfo().width - editor.getDomNode().parentElement.clientWidth) < 5));
     await page.screenshot({path: 'out/monad/tablet.png', fullPage: true});
-    console.log(`Browser checks passed at ${url}: mnemonics, x86, bytecode, JUMPI source highlighting, labels, errors, recovery, hex input and static-only requests.`);
+    console.log(`Browser checks passed at ${url}: mnemonics, x86, bytecode, jump and prologue source highlighting, labels, errors, recovery, hex input and static-only requests.`);
 } catch (error) {
     mkdirSync('out/monad', {recursive: true});
     await page?.screenshot({path: 'out/monad/failure.png', fullPage: true});

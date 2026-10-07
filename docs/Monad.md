@@ -44,6 +44,9 @@ continue to work. Solidity source is not supported.
 
 Edits compile automatically. CE's source/assembly highlighting, multiple compiler
 panes, diff panes, local file loading/saving, and full share links remain available.
+Source highlighting follows instruction byte offsets, including explicit block
+terminators. Block prologues, implicit fall-through, and implicit end-of-code
+`STOP` have no source association. Hiding comments preserves these mappings.
 Execution, server-side tools, short-link storage, and external integrations are
 outside this static build. Compilation runs in a worker with a 30-second timeout;
 the next request restarts a failed worker.
@@ -56,7 +59,7 @@ After compiler changes, use the full `npm run build:monad` command.
 `vendor/monad` is a submodule of
 [monad-crypto/monad](https://github.com/monad-crypto/monad/tree/sam/mce_wasm),
 tracking `sam/mce_wasm` and pinned to
-`a69d49949291ead803a5e844d7ca744fb5495067`. This revision contains the assembly-only
+`5ed96844d5a9d5bef5f62d9b5025e4d89f70ee3a`. This revision contains the assembly-only
 WASM target. Initialise only the dependencies this target needs:
 
 ```sh

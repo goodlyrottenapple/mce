@@ -54,8 +54,9 @@ export function assemblyLines(assembly, source, filters = {}, sourceLines = null
     const byteLines = sourceLines ?? hexSourceLines(source);
     let sourceLine = null;
     return assembly.split('\n').flatMap(text => {
-        const match = text.match(/^\s*\/\/\s+0x([0-9a-f]+):/i);
-        if (match) sourceLine = byteLines[Number.parseInt(match[1], 16)] ?? null;
+        const match = text.match(/^\s*\/\/\s+0x([0-9a-f]+):\s*(.*)$/i);
+        if (match) sourceLine = match[2] ? (byteLines[Number.parseInt(match[1], 16)] ?? null) : null;
+        if (/^\s*\/\/\s+(?:FallThrough\b|Stop \(implicit\))/.test(text)) sourceLine = null;
         if (/^(ContractEpilogue:|Error:|\.section)/.test(text)) sourceLine = null;
         if (!text || (filters.commentOnly && text.trimStart().startsWith('//'))) return [];
         if (filters.directives && /^\s*(\.|align\s)/.test(text)) return [];

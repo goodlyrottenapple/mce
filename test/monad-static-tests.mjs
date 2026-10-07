@@ -113,6 +113,104 @@ test('maps conditional branches to JUMPI with comments visible or hidden', async
     }
 });
 
+test('maps explicit terminators to their own source lines', async () => {
+    const mce = await module;
+    for (const [source, name, instruction] of [
+        ['jumpdest .loop\npush .loop\njump', 'Jump', /\bjmp B0$/],
+        ['jumpdest .loop\npush32 .loop\njump', 'Jump', /\bjmp B0$/],
+        ['push1 0\npush1 0\nreturn', 'Return', /\bjmp ContractEpilogue$/],
+        ['push1 0\npush1 0\nrevert', 'Revert', /\bjmp ContractEpilogue$/],
+        ['push1 0\nselfdestruct', 'SelfDestruct', /^call qword ptr \[runtime_selfdestruct_ptr\]$/],
+        ['push1 1\nstop', 'Stop', /\bjmp ContractEpilogue$/],
+        ['push32 0x56\nstop', 'Stop', /\bjmp ContractEpilogue$/],
+        ['jumpdest .end\nstop', 'Stop', /\bjmp ContractEpilogue$/],
+        ['stop', 'Stop', /\bjmp ContractEpilogue$/],
+    ]) {
+        const assembled = mce.assembleMnemonic(source);
+        assert.equal(assembled.error, '');
+        for (const commentOnly of [false, true]) {
+            const options = {filters: {commentOnly}};
+            for (const [input, expectedLine] of [
+                [{source, compiler: 'monad-mnemonic-latest', options}, source.split('\n').length],
+                [request(assembled.bytecode.match(/../g).join('\n'), 'latest', options), assembled.bytecode.length / 2],
+            ]) {
+                const result = await compileRequest(module, input);
+                assert.equal(result.code, 0, JSON.stringify(result.stderr));
+                const emitted = result.asm.find(line => instruction.test(line.text));
+                assert.equal(emitted?.source?.line, expectedLine, source);
+                if (!commentOnly) {
+                    const marker = result.asm.find(line => new RegExp(`:\\s+${name}$`).test(line.text));
+                    assert.equal(marker?.source?.line, expectedLine, source);
+                }
+            }
+        }
+    }
+    for (const [hex, revision] of [
+        ['60\n00\nfe', 'latest'],
+        ['60\n00\nee', 'latest'],
+        ['5b\nfe', 'latest'],
+        ['5f', 'berlin'],
+    ]) {
+        const result = await compileRequest(module, request(hex, revision));
+        assert.equal(result.code, 0);
+        const marker = result.asm.findIndex(line => /:\s+InvalidInstruction$/.test(line.text));
+        assert.ok(marker >= 0, hex);
+        assert.equal(result.asm[marker].source?.line, hex.split('\n').length);
+        assert.equal(result.asm[marker + 1].source?.line, hex.split('\n').length);
+    }
+});
+
+test('leaves block prologues and synthetic fall-through code unmapped', async () => {
+    const source =
+        'push0\npush1 10\njumpdest .loop\ndup1\niszero\npush .done\njumpi\npush .loop\njump\njumpdest .done\nstop';
+    const result = await compileRequest(module, {source, compiler: 'monad-mnemonic-latest'});
+    assert.equal(result.code, 0);
+    let unmapped = true;
+    let prologues = 0;
+    let fallthroughs = 0;
+    for (const line of result.asm) {
+        if (/^\/\/\s+0x[0-9a-f]+:\s*$/i.test(line.text)) {
+            unmapped = true;
+            ++prologues;
+        } else if (/^\/\/\s+FallThrough\b/.test(line.text)) {
+            unmapped = true;
+            ++fallthroughs;
+        } else if (/^\/\/\s+0x[0-9a-f]+:\s+\S/i.test(line.text)) {
+            unmapped = false;
+        }
+        if (unmapped) assert.equal(line.source, null, line.text);
+    }
+    assert.ok(prologues >= 3);
+    assert.ok(fallthroughs >= 1);
+    for (const commentOnly of [false, true]) {
+        const filtered = await compileRequest(module, {
+            source,
+            compiler: 'monad-mnemonic-latest',
+            options: {filters: {commentOnly, directives: true}},
+        });
+        assert.equal(filtered.code, 0);
+        const push0 = filtered.asm.filter(line => line.source?.line === 1);
+        assert.equal(push0.length, commentOnly ? 0 : 1);
+        if (!commentOnly) assert.match(push0[0].text, /:\s+PUSH0$/);
+    }
+});
+
+test('does not attribute implicit end-of-code STOP to the preceding instruction', async () => {
+    for (const hex of ['', '5f', '60', '7f01', '5b', '600035600157']) {
+        const result = await compileRequest(module, request(hex));
+        assert.equal(result.code, 0);
+        const stop = result.asm.findIndex(line => /Stop \(implicit\)$/.test(line.text));
+        assert.ok(stop >= 0, hex);
+        for (const line of result.asm.slice(stop)) assert.equal(line.source, null, `${hex}: ${line.text}`);
+        const filtered = await compileRequest(module, request(hex, 'latest', {filters: {commentOnly: true}}));
+        assert.equal(filtered.code, 0);
+        assert.deepEqual(
+            filtered.asm,
+            result.asm.filter(line => !line.text.trimStart().startsWith('//')),
+        );
+    }
+});
+
 test('assembles mnemonic source to bytecode and identical x86 for every revision', async () => {
     const source = '// add two constants\npush1 1\nPUSH2 0x0002\nadd\nstop';
     const hex = '60016100020100';
