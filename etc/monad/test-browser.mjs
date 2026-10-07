@@ -46,8 +46,21 @@ try {
     assert.match(initial, /call qword ptr \[monad_vm_runtime_increase_memory_raw_v1_ptr\]/);
     assert.match(initial, /call qword ptr \[monad_vm_runtime_load_bounded_le_raw_ptr\]/);
     assert.doesNotMatch(initial, /call qword ptr \[ROD/);
+    await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push0\npush1 10\njumpdest .loop\ndup1\niszero\npush .done\njumpi\npush .loop\njump\njumpdest .done\nstop'));
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('je Bc')));
+    const branchPosition = await page.evaluate(() => {
+        const editor = window.monaco.editor.getEditors().find(editor => editor.getModel()?.getLanguageId() === 'asm');
+        const lineNumber = editor.getModel().getLinesContent().findIndex(line => line === 'je Bc') + 1;
+        editor.revealLineInCenter(lineNumber, window.monaco.editor.ScrollType.Immediate);
+        const position = editor.getScrolledVisiblePosition({lineNumber, column: 2});
+        const bounds = editor.getDomNode().getBoundingClientRect();
+        return {x: bounds.x + position.left, y: bounds.y + position.top + position.height / 2};
+    });
+    await page.mouse.move(branchPosition.x, branchPosition.y);
+    await page.waitForFunction(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').getAllDecorations().some(decoration => decoration.options.className === 'linked-code-decoration-line' && decoration.range.startLineNumber === 7));
+    await page.mouse.move(0, 0);
     await page.evaluate(() => window.monaco.editor.getModels().find(model => model.getLanguageId() === 'mevm').setValue('push1 5\npush1 6\nadd\npush1 0\nmstore\nstop'));
-    await page.waitForFunction(before => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:') && model.getValue() !== before), initial);
+    await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'asm' && model.getValue().includes('ContractEpilogue:') && !model.getValue().includes('je Bc')));
     const compilerPicker = page.locator('.lm_content select.compiler-picker');
     await compilerPicker.evaluate(select => select.tomselect.setValue('monad-bytecode'));
     await page.waitForFunction(() => window.monaco.editor.getModels().some(model => model.getLanguageId() === 'evm' && model.getValue().replace(/\s/g, '') === '600560060160005200'));
@@ -83,7 +96,7 @@ try {
     await page.setViewportSize({width: 768, height: 1024});
     await page.waitForFunction(() => window.monaco.editor.getEditors().every(editor => !editor.getDomNode()?.offsetParent || Math.abs(editor.getLayoutInfo().width - editor.getDomNode().parentElement.clientWidth) < 5));
     await page.screenshot({path: 'out/monad/tablet.png', fullPage: true});
-    console.log(`Browser checks passed at ${url}: mnemonics, x86, bytecode, labels, errors, recovery, hex input and static-only requests.`);
+    console.log(`Browser checks passed at ${url}: mnemonics, x86, bytecode, JUMPI source highlighting, labels, errors, recovery, hex input and static-only requests.`);
 } catch (error) {
     mkdirSync('out/monad', {recursive: true});
     await page?.screenshot({path: 'out/monad/failure.png', fullPage: true});

@@ -56,7 +56,7 @@ After compiler changes, use the full `npm run build:monad` command.
 `vendor/monad` is a submodule of
 [monad-crypto/monad](https://github.com/monad-crypto/monad/tree/sam/mce_wasm),
 tracking `sam/mce_wasm` and pinned to
-`a3d9afd17b2a6b6dd9f64daf8b8d9129f38e7aa4`. This revision contains the assembly-only
+`a69d49949291ead803a5e844d7ca744fb5495067`. This revision contains the assembly-only
 WASM target. Initialise only the dependencies this target needs:
 
 ```sh

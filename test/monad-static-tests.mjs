@@ -73,6 +73,46 @@ test('module load failures become readable compiler errors', async () => {
     assert.equal(result.stderr[0].text, 'Failed to load WASM');
 });
 
+test('maps conditional branches to JUMPI with comments visible or hidden', async () => {
+    for (const push of ['push .done', 'push2 .done', 'push32 .done']) {
+        const source = [
+            'push0',
+            'push1 10',
+            'jumpdest .loop',
+            'dup1',
+            'iszero',
+            push,
+            'jumpi',
+            'push .loop',
+            'jump',
+            'jumpdest .done',
+            'stop',
+        ].join('\n');
+        const mce = await module;
+        const assembled = mce.assembleMnemonic(source);
+        assert.equal(assembled.error, '');
+        const jumpiOffset = assembled.sourceLines.indexOf(7);
+        const targetOffset = assembled.sourceLines.indexOf(10);
+        for (const commentOnly of [false, true]) {
+            const options = {filters: {commentOnly}};
+            for (const input of [
+                {source, compiler: 'monad-mnemonic-latest', options},
+                request(assembled.bytecode.match(/../g).join('\n'), 'latest', options),
+            ]) {
+                const result = await compileRequest(module, input);
+                assert.equal(result.code, 0, JSON.stringify(result.stderr));
+                const branch = result.asm.find(line => line.text === `je B${targetOffset.toString(16)}`);
+                assert.ok(branch, `Missing conditional branch for ${push}`);
+                assert.equal(branch.source?.line, input.source === source ? 7 : jumpiOffset + 1);
+                if (!commentOnly) {
+                    const marker = result.asm.find(line => /:\s+JumpI\s/.test(line.text));
+                    assert.equal(marker?.source?.line, branch.source.line);
+                }
+            }
+        }
+    }
+});
+
 test('assembles mnemonic source to bytecode and identical x86 for every revision', async () => {
     const source = '// add two constants\npush1 1\nPUSH2 0x0002\nadd\nstop';
     const hex = '60016100020100';
