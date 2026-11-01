@@ -21,13 +21,13 @@ jobs:
     env:
       CYPRESS_INSTALL_BINARY: '0'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check out the pinned compiler and its build dependencies
         run: |
           git submodule update --init --depth 1 vendor/monad
           git -C vendor/monad submodule update --init --depth 1 \
             third_party/asmjit third_party/evmc third_party/ethash third_party/unordered_dense
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.19.0'
           cache: npm
@@ -61,12 +61,12 @@ jobs:
           MCE_URL=http://127.0.0.1:10240/mce/ npm run test:monad:browser
       - name: Upload browser screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-screenshots
           path: out/monad/*.png
           if-no-files-found: ignore
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist-monad
 
@@ -81,7 +81,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
